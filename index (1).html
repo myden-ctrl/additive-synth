@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Additive Synth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --panel: #1B1B1D;
+    --well: #141415;
+    --well-inset: #0e0e0f;
+    --amber: #4CD97B;
+    --amber-dim: #2C6B40;
+    --ivory: #EDE6D6;
+    --ivory-dim: #8a877d;
+    --red: #D64545;
+    --track: #3a3a3d;
+    --line: #2c2c2e;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #0c0c0d;
+    color: var(--ivory);
+    font-family: 'Courier Prime', 'Courier New', monospace;
+  }
+  body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 48px;
+    min-height: 100%;
+  }
+  .rack {
+    width: 100%;
+    max-width: 900px;
+    background: var(--panel);
+    border-radius: 2px;
+    border: 1px solid #2a2a2c;
+    box-shadow: none;
+    padding: 22px 22px 26px;
+  }
+  .rack-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 2px 6px 18px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .brand {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    color: var(--ivory);
+  }
+  .brand span { color: var(--amber); }
+  .brand-sub {
+    font-size: 12px;
+    color: var(--ivory-dim);
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    letter-spacing: 0.04em;
+  }
+
+  /* Scope */
+  .scope-well {
+    background: var(--well-inset);
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    padding: 10px;
+    margin-bottom: 20px;
+    box-shadow: none;
+  }
+  canvas#scope {
+    display: block;
+    width: 100%;
+    height: 150px;
+    border-radius: 2px;
+    background:
+      linear-gradient(rgba(76,217,123,0.05) 1px, transparent 1px) 0 0 / 100% 25%,
+      linear-gradient(90deg, rgba(76,217,123,0.05) 1px, transparent 1px) 0 0 / 8.33% 100%,
+      #0a0a0b;
+  }
+
+  .draw-well {
+    background: var(--well-inset);
+    border-radius: 1px;
+    border: 1px solid var(--line);
+    padding: 8px;
+  }
+  canvas#drawBox {
+    display: block;
+    width: 100%;
+    height: 140px;
+    border-radius: 1px;
+    background: #0a0a0b;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* Fader bank */
+  .bank {
+    background: var(--well);
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    padding: 18px 14px 12px;
+    margin-bottom: 18px;
+  }
+  .bank-label {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    color: var(--ivory-dim);
+    margin: 0 4px 14px;
+  }
+  .faders {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px 6px;
+    padding: 0 4px;
+  }
+  .fader-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--well-inset);
+    border-radius: 1px;
+    padding: 10px 4px 8px;
+  }
+  .fader-track-wrap {
+    height: 110px;
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    justify-content: center;
+  }
+  input[type="range"].fader {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100px;
+    height: 26px;
+    background: transparent;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    margin: 37px 0;
+  }
+  input[type="range"].fader::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--track);
+    border-radius: 2px;
+  }
+  input[type="range"].fader::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 26px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--ivory);
+    border: 1px solid #00000033;
+    margin-top: -5px;
+    box-shadow: none;
+    cursor: pointer;
+  }
+  input[type="range"].fader::-moz-range-track {
+    height: 4px;
+    background: var(--track);
+    border-radius: 2px;
+  }
+  input[type="range"].fader::-moz-range-thumb {
+    width: 26px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--ivory);
+    border: 1px solid #00000033;
+    cursor: pointer;
+  }
+  .fader-n {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--amber);
+    margin-top: 8px;
+  }
+  .fader-hz {
+    font-size: 9.5px;
+    color: var(--ivory-dim);
+    margin-top: 1px;
+  }
+
+  /* Controls row */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 620px) {
+    .controls { grid-template-columns: 1fr; }
+  }
+  .control-box {
+    background: var(--well);
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    padding: 14px 16px 16px;
+  }
+  .control-box .bank-label { margin-bottom: 10px; }
+
+  .freq-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  input[type="range"].wide {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 4px;
+    background: var(--track);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"].wide::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--amber);
+    border: 2px solid #241a05;
+    cursor: pointer;
+    margin-top: -6px;
+  }
+  input[type="range"].wide::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--amber);
+    border: 2px solid #241a05;
+    cursor: pointer;
+  }
+  .freq-readout {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ivory);
+    min-width: 92px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .freq-readout .note {
+    color: var(--amber);
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  .vol-row { display: flex; align-items: center; gap: 12px; }
+
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  button.play-btn {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+    background: var(--amber);
+    color: #201502;
+    border: none;
+    border-radius: 2px;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+  }
+  button.play-btn:active { transform: scale(0.97); }
+  button.play-btn.playing { background: var(--red); color: #2a0d0d; }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--track);
+    box-shadow: none;
+  }
+  .status-dot.on { background: var(--amber); box-shadow: none; }
+  .status-text {
+    font-size: 12px;
+    color: var(--ivory-dim);
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    letter-spacing: 0.03em;
+  }
+
+  /* Presets */
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  button.preset {
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    background: var(--well-inset);
+    color: var(--ivory);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  button.preset:hover { border-color: var(--amber-dim); color: var(--amber); }
+  button.preset:active { transform: translateY(1px); }
+
+  .kbd-legend { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .kbd-row { display: flex; gap: 4px; }
+  .kbd-row:first-child { margin-left: 22px; }
+  .kbd-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 2px;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .kbd-key.white {
+    background: var(--ivory);
+    color: #1a1a1a;
+    border: 1px solid #00000022;
+  }
+  .kbd-key.black {
+    background: #0a0a0b;
+    color: var(--ivory);
+    border: 1px solid var(--line);
+  }
+  .kbd-key.black-gap { width: 30px; height: 30px; visibility: hidden; }
+  .kbd-key.small {
+    width: auto;
+    height: auto;
+    padding: 2px 7px;
+    background: var(--well-inset);
+    color: var(--amber);
+    border: 1px solid var(--line);
+    font-size: 11px;
+  }
+  .kbd-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--ivory-dim);
+  }
+  .kbd-hint #kbdNote { color: var(--amber); font-weight: 600; }
+
+  .footnote {
+    font-size: 11.5px;
+    color: var(--ivory-dim);
+    text-align: center;
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="rack">
+  <div class="rack-header">
+    <div>
+      <div class="brand">ADDITIVE<span>.</span></div>
+    </div>
+    <div class="brand-sub" id="partialCount">12 PARTIALS</div>
+  </div>
+
+  <div class="scope-well">
+    <canvas id="scope" width="860" height="150"></canvas>
+  </div>
+
+  <div class="bank">
+    <div class="bank-label">DRAW &mdash; click and drag across the 12 partials to sketch a shape</div>
+    <div class="draw-well">
+      <canvas id="drawBox" width="820" height="140"></canvas>
+    </div>
+  </div>
+
+  <div class="bank">
+    <div class="bank-label">PARTIAL AMPLITUDES &mdash; fader height doubles as the spectrum</div>
+    <div class="faders" id="faders"></div>
+  </div>
+
+  <div class="controls">
+    <div class="control-box">
+      <div class="bank-label">FUNDAMENTAL</div>
+      <div class="freq-row">
+        <input type="range" class="wide" id="freqSlider" min="55" max="880" value="110" step="1">
+        <div class="freq-readout"><span id="freqValue">110</span> Hz<span class="note" id="noteValue">A2</span></div>
+      </div>
+    </div>
+    <div class="control-box">
+      <div class="bank-label">MASTER VOLUME</div>
+      <div class="vol-row">
+        <input type="range" class="wide" id="volSlider" min="0" max="100" value="55" step="1">
+        <div class="freq-readout"><span id="volValue">55</span>%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-box">
+      <div class="bank-label">TRANSPORT</div>
+      <div class="transport">
+        <button class="play-btn" id="playBtn">Play</button>
+        <div class="status-dot" id="statusDot"></div>
+        <div class="status-text" id="statusText">Stopped</div>
+      </div>
+    </div>
+    <div class="control-box">
+      <div class="bank-label">PRESETS</div>
+      <div class="presets">
+        <button class="preset" data-preset="sine">Sine</button>
+        <button class="preset" data-preset="sawtooth">Sawtooth</button>
+        <button class="preset" data-preset="square">Square</button>
+        <button class="preset" data-preset="triangle">Triangle</button>
+        <button class="preset" data-preset="clear">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="control-box" style="margin-bottom: 18px;">
+    <div class="bank-label">PLAY WITH YOUR KEYBOARD</div>
+    <div class="kbd-legend">
+      <div class="kbd-row">
+        <span class="kbd-key black">W</span><span class="kbd-key black">E</span><span class="kbd-key black-gap"></span><span class="kbd-key black">T</span><span class="kbd-key black">Y</span><span class="kbd-key black">U</span><span class="kbd-key black-gap"></span><span class="kbd-key black">O</span><span class="kbd-key black">P</span>
+      </div>
+      <div class="kbd-row">
+        <span class="kbd-key white">A</span><span class="kbd-key white">S</span><span class="kbd-key white">D</span><span class="kbd-key white">F</span><span class="kbd-key white">G</span><span class="kbd-key white">H</span><span class="kbd-key white">J</span><span class="kbd-key white">K</span><span class="kbd-key white">L</span><span class="kbd-key white">;</span>
+      </div>
+      <div class="kbd-hint">Hold a key to play that note. <span class="kbd-key small">Z</span> / <span class="kbd-key small">X</span> shift the octave down / up. Now playing: <span id="kbdNote">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="footnote">Each fader sets partial n's amplitude at n &times; the fundamental. Presets load the textbook amplitude rules &mdash; sawtooth &amp; square use 1/n, triangle uses 1/n&sup2; on odd partials only.</div>
+</div>
+
+<script>
+(function () {
+  const NUM_PARTIALS = 12;
+  const faderValues = new Array(NUM_PARTIALS).fill(0);
+  faderValues[0] = 100; // start as a pure sine
+
+  let audioCtx = null;
+  let oscillators = [];
+  let gains = [];
+  let masterGain = null;
+  let analyser = null;
+  let playing = false;
+  let fundamental = 110;
+  let masterVolPct = 55;
+  let rafId = null;
+
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  function freqToNote(f) {
+    const midi = Math.round(12 * Math.log2(f / 440) + 69);
+    const name = NOTE_NAMES[(midi % 12 + 12) % 12];
+    const octave = Math.floor(midi / 12) - 1;
+    return name + octave;
+  }
+
+  // Build faders
+  const fadersEl = document.getElementById('faders');
+  for (let i = 0; i < NUM_PARTIALS; i++) {
+    const n = i + 1;
+    const col = document.createElement('div');
+    col.className = 'fader-col';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'fader-track-wrap';
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.className = 'fader';
+    input.min = 0;
+    input.max = 100;
+    input.step = 1;
+    input.value = faderValues[i];
+    input.dataset.index = i;
+    input.addEventListener('input', onFaderChange);
+
+    wrap.appendChild(input);
+    col.appendChild(wrap);
+
+    const label = document.createElement('div');
+    label.className = 'fader-n';
+    label.textContent = n;
+    col.appendChild(label);
+
+    const hz = document.createElement('div');
+    hz.className = 'fader-hz';
+    hz.textContent = '×' + n;
+    col.appendChild(hz);
+
+    fadersEl.appendChild(col);
+  }
+
+  function onFaderChange(e) {
+    const idx = parseInt(e.target.dataset.index, 10);
+    faderValues[idx] = parseFloat(e.target.value);
+    updateGain(idx);
+    redrawDrawBox();
+  }
+
+  function updateGain(idx) {
+    if (!gains[idx] || !audioCtx) return;
+    const amp = faderValues[idx] / 100;
+    const target = amp * 0.22; // headroom scaling so 12 full faders won't clip hard
+    gains[idx].gain.setTargetAtTime(target, audioCtx.currentTime, 0.01);
+  }
+
+  function updateAllGains() {
+    for (let i = 0; i < NUM_PARTIALS; i++) updateGain(i);
+  }
+
+  function updateFrequencies() {
+    if (!audioCtx) return;
+    for (let i = 0; i < NUM_PARTIALS; i++) {
+      if (oscillators[i]) {
+        oscillators[i].frequency.setTargetAtTime(fundamental * (i + 1), audioCtx.currentTime, 0.01);
+      }
+    }
+  }
+
+  function setFaders(values) {
+    for (let i = 0; i < NUM_PARTIALS; i++) {
+      faderValues[i] = values[i] || 0;
+      const el = fadersEl.children[i].querySelector('input');
+      el.value = faderValues[i];
+    }
+    updateAllGains();
+    redrawDrawBox();
+  }
+
+  // ----- Draw box: click/drag to sketch partial amplitudes -----
+  const drawCanvas = document.getElementById('drawBox');
+  const drawCtx = drawCanvas.getContext('2d');
+  let drawing = false;
+
+  function resizeDrawBox() {
+    const rect = drawCanvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    drawCanvas.width = rect.width * dpr;
+    drawCanvas.height = rect.height * dpr;
+    drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redrawDrawBox();
+  }
+  window.addEventListener('resize', resizeDrawBox);
+
+  function redrawDrawBox() {
+    const rect = drawCanvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    drawCtx.clearRect(0, 0, w, h);
+
+    const colW = w / NUM_PARTIALS;
+    const barW = colW * 0.55;
+
+    for (let i = 0; i < NUM_PARTIALS; i++) {
+      const amp = faderValues[i] / 100;
+      const barH = amp * (h - 8);
+      const x = i * colW + (colW - barW) / 2;
+      const y = h - barH;
+      drawCtx.fillStyle = i === 0 ? 'rgba(76,217,123,0.9)' : 'rgba(76,217,123,0.65)';
+      drawCtx.fillRect(x, y, barW, barH);
+    }
+  }
+
+  function setPartialFromPointer(clientX, clientY) {
+    const rect = drawCanvas.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    const relY = clientY - rect.top;
+    const colW = rect.width / NUM_PARTIALS;
+    let idx = Math.floor(relX / colW);
+    idx = Math.max(0, Math.min(NUM_PARTIALS - 1, idx));
+
+    let amp = 1 - (relY / rect.height);
+    amp = Math.max(0, Math.min(1, amp));
+    const value = Math.round(amp * 100);
+
+    faderValues[idx] = value;
+    const el = fadersEl.children[idx].querySelector('input');
+    el.value = value;
+    updateGain(idx);
+    redrawDrawBox();
+  }
+
+  drawCanvas.addEventListener('pointerdown', (e) => {
+    drawing = true;
+    drawCanvas.setPointerCapture(e.pointerId);
+    setPartialFromPointer(e.clientX, e.clientY);
+  });
+  drawCanvas.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    setPartialFromPointer(e.clientX, e.clientY);
+  });
+  drawCanvas.addEventListener('pointerup', () => { drawing = false; });
+  drawCanvas.addEventListener('pointerleave', () => { drawing = false; });
+
+  resizeDrawBox();
+
+  // Presets
+  document.querySelectorAll('.preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.dataset.preset;
+      const vals = new Array(NUM_PARTIALS).fill(0);
+      if (p === 'sine') {
+        vals[0] = 100;
+      } else if (p === 'sawtooth') {
+        for (let n = 1; n <= NUM_PARTIALS; n++) vals[n-1] = 100 / n;
+      } else if (p === 'square') {
+        for (let n = 1; n <= NUM_PARTIALS; n += 2) vals[n-1] = 100 / n;
+      } else if (p === 'triangle') {
+        for (let n = 1; n <= NUM_PARTIALS; n += 2) vals[n-1] = 100 / (n * n);
+      } else if (p === 'clear') {
+        // all zero
+      }
+      setFaders(vals);
+    });
+  });
+
+  // Frequency control
+  const freqSlider = document.getElementById('freqSlider');
+  const freqValue = document.getElementById('freqValue');
+  const noteValue = document.getElementById('noteValue');
+  freqSlider.addEventListener('input', () => {
+    fundamental = parseFloat(freqSlider.value);
+    freqValue.textContent = Math.round(fundamental);
+    noteValue.textContent = freqToNote(fundamental);
+    updateFrequencies();
+  });
+  noteValue.textContent = freqToNote(fundamental);
+
+  // Volume control
+  const volSlider = document.getElementById('volSlider');
+  const volValue = document.getElementById('volValue');
+  volSlider.addEventListener('input', () => {
+    masterVolPct = parseFloat(volSlider.value);
+    volValue.textContent = Math.round(masterVolPct);
+    if (masterGain && audioCtx) {
+      masterGain.gain.setTargetAtTime(masterVolPct / 100, audioCtx.currentTime, 0.01);
+    }
+  });
+
+  // Transport
+  const playBtn = document.getElementById('playBtn');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+
+  playBtn.addEventListener('click', () => {
+    if (!playing) startAudio(); else stopAudio();
+  });
+
+  function startAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (err) {
+      statusText.textContent = 'Audio unavailable';
+      return;
+    }
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = masterVolPct / 100;
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    oscillators = [];
+    gains = [];
+    for (let i = 0; i < NUM_PARTIALS; i++) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = fundamental * (i + 1);
+      const g = audioCtx.createGain();
+      g.gain.value = 0;
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start();
+      oscillators.push(osc);
+      gains.push(g);
+    }
+    updateAllGains();
+
+    playing = true;
+    playBtn.textContent = 'Stop';
+    playBtn.classList.add('playing');
+    statusDot.classList.add('on');
+    statusText.textContent = 'Playing';
+
+    drawScope();
+  }
+
+  function stopAudio() {
+    playing = false;
+    playBtn.textContent = 'Play';
+    playBtn.classList.remove('playing');
+    statusDot.classList.remove('on');
+    statusText.textContent = 'Stopped';
+    heldNotes.length = 0;
+    keyboardStartedAudio = false;
+    if (kbdNoteEl) kbdNoteEl.textContent = '\u2014';
+
+    if (rafId) cancelAnimationFrame(rafId);
+
+    oscillators.forEach(o => { try { o.stop(); } catch (e) {} });
+    oscillators = [];
+    gains = [];
+
+    if (audioCtx) {
+      audioCtx.close();
+      audioCtx = null;
+    }
+
+    clearScope();
+  }
+
+  // Scope drawing
+  const canvas = document.getElementById('scope');
+  const ctx2d = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function clearScope() {
+    resizeCanvas();
+    const rect = canvas.getBoundingClientRect();
+    ctx2d.clearRect(0, 0, rect.width, rect.height);
+  }
+
+  function drawScope() {
+    if (!playing || !analyser) return;
+    const rect = canvas.getBoundingClientRect();
+    const bufferLength = analyser.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteTimeDomainData(dataArray);
+
+    ctx2d.clearRect(0, 0, rect.width, rect.height);
+    ctx2d.lineWidth = 2;
+    ctx2d.strokeStyle = '#4CD97B';
+    ctx2d.beginPath();
+
+    const sliceWidth = rect.width / bufferLength;
+    let x = 0;
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArray[i] / 128.0;
+      const y = (v * rect.height) / 2;
+      if (i === 0) ctx2d.moveTo(x, y);
+      else ctx2d.lineTo(x, y);
+      x += sliceWidth;
+    }
+    ctx2d.stroke();
+
+    rafId = requestAnimationFrame(drawScope);
+  }
+
+  resizeCanvas();
+
+  // ----- Computer keyboard playing -----
+  const KEY_SEMITONES = {
+    'a': 0, 'w': 1, 's': 2, 'e': 3, 'd': 4, 'f': 5, 't': 6, 'g': 7,
+    'y': 8, 'h': 9, 'u': 10, 'j': 11, 'k': 12, 'o': 13, 'l': 14, 'p': 15, ';': 16
+  };
+  let baseOctave = 3;
+  const heldNotes = [];
+  let keyboardStartedAudio = false;
+  const kbdNoteEl = document.getElementById('kbdNote');
+
+  function noteToFreq(semitoneFromC, octave) {
+    const midi = 12 * (octave + 1) + semitoneFromC;
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  function refreshFundamentalFromKeys() {
+    if (heldNotes.length === 0) {
+      kbdNoteEl.textContent = '\u2014';
+      return;
+    }
+    const top = heldNotes[heldNotes.length - 1];
+    fundamental = noteToFreq(top, baseOctave);
+    freqSlider.value = Math.min(880, Math.max(55, Math.round(fundamental)));
+    freqValue.textContent = Math.round(fundamental);
+    const nn = freqToNote(fundamental);
+    noteValue.textContent = nn;
+    kbdNoteEl.textContent = nn + ' (' + Math.round(fundamental) + ' Hz)';
+    updateFrequencies();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+
+    if (key === 'z') { baseOctave = Math.max(0, baseOctave - 1); refreshFundamentalFromKeys(); return; }
+    if (key === 'x') { baseOctave = Math.min(7, baseOctave + 1); refreshFundamentalFromKeys(); return; }
+    if (!(key in KEY_SEMITONES)) return;
+
+    e.preventDefault();
+    const semitone = KEY_SEMITONES[key];
+    if (heldNotes.includes(semitone)) return;
+    heldNotes.push(semitone);
+
+    if (!playing) {
+      startAudio();
+      keyboardStartedAudio = true;
+    }
+    refreshFundamentalFromKeys();
+  });
+
+  window.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (!(key in KEY_SEMITONES)) return;
+    const semitone = KEY_SEMITONES[key];
+    const idx = heldNotes.indexOf(semitone);
+    if (idx !== -1) heldNotes.splice(idx, 1);
+
+    if (heldNotes.length > 0) {
+      refreshFundamentalFromKeys();
+    } else {
+      kbdNoteEl.textContent = '\u2014';
+      if (keyboardStartedAudio && playing) {
+        stopAudio();
+        keyboardStartedAudio = false;
+      }
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
